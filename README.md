@@ -1,6 +1,6 @@
 # OpenTelemetry neo4j Instrumentation for Node.js
 
-[![npm version](https://badge.fury.io/js/%40opentelemetry%2Finstrumentation-neo4j.svg)](https://www.npmjs.com/package/@opentelemetry/instrumentation-neo4j)
+[![npm version](https://badge.fury.io/js/otel-instrumentation-neo4j-node.svg)](https://www.npmjs.com/package/otel-instrumentation-neo4j-node)
 
 OpenTelemetry instrumentation for `neo4j-driver` (the official Neo4j JavaScript driver). Automatically creates spans for Cypher queries, transactions, and session lifecycle — **zero code changes** to existing Neo4j code.
 
@@ -9,7 +9,7 @@ Compatible with `neo4j-driver` **>=5.0.0 <7**.
 ## Install
 
 ```bash
-npm install @opentelemetry/instrumentation-neo4j
+npm install otel-instrumentation-neo4j-node
 ```
 
 **Peer dependencies** (already required by your OpenTelemetry setup):
@@ -22,7 +22,7 @@ npm install @opentelemetry/api
 
 ```ts
 import { NodeSDK } from "@opentelemetry/sdk-node";
-import { Neo4jInstrumentation } from "@opentelemetry/instrumentation-neo4j";
+import { Neo4jInstrumentation } from "otel-instrumentation-neo4j-node";
 
 const sdk = new NodeSDK({
   instrumentations: [new Neo4jInstrumentation()],

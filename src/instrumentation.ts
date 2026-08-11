@@ -25,7 +25,7 @@ import { VERSION } from "./version"
 export class Neo4jInstrumentation
   extends InstrumentationBase<Neo4jInstrumentationConfig> {
   constructor(config: Neo4jInstrumentationConfig = {}) {
-    super("@opentelemetry/instrumentation-neo4j", VERSION, config)
+    super("otel-instrumentation-neo4j-node", VERSION, config)
   }
 
   protected init():

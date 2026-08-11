@@ -9,7 +9,7 @@ Targets: **Node.js >= 20**, `@opentelemetry/sdk-node`.
 ## Package name convention
 
 ```
-@opentelemetry/instrumentation-neo4j
+otel-instrumentation-neo4j-node
 ```
 
 ## Architecture

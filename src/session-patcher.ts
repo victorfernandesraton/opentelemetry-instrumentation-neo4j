@@ -44,7 +44,7 @@ export function configureSessionPatcher(
 }
 
 function getTracer() {
-  return trace.getTracer("@opentelemetry/instrumentation-neo4j", "0.1.0");
+  return trace.getTracer("otel-instrumentation-neo4j-node", "0.1.0");
 }
 
 function hasActiveSpan(): boolean {
