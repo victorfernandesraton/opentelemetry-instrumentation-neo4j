@@ -1,0 +1,23 @@
+{
+  "languages": {
+    "TypeScript": {
+      "language_servers": [
+        "deno",
+        "!typescript-language-server",
+        "!vtsls"
+      ],
+      "formatter": { "external": { "command": "deno", "arguments": ["fmt", "--ext=ts", "-"] } }
+    }
+  },
+  "lsp": {
+    "deno": {
+      "settings": {
+        "deno": {
+          "enable": true,
+          "lint": true,
+          "unstable": []
+        }
+      }
+    }
+  }
+}
