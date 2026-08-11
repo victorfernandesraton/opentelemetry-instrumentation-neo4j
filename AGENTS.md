@@ -178,6 +178,7 @@ npm run test:e2e
 
 ## References
 
+- [README.md](./README.md) — user-facing docs
 - [OTel JS Instrumentation Guidelines](https://github.com/open-telemetry/opentelemetry-js-contrib/blob/main/GUIDELINES.md)
 - [Database semantic conventions](https://opentelemetry.io/docs/specs/semconv/database/database-spans/)
 - [Neo4j JS Driver API](https://neo4j.com/docs/api/javascript-driver/current/)
