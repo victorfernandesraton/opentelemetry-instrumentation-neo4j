@@ -10,12 +10,12 @@ import {
   wrapSessionExecuteWrite,
   wrapBeginTransaction,
   wrapDriverSession,
-} from "../../src/session-patcher.js"
+} from "../../src/session-patcher"
 import type {
   Neo4jDriver,
   Neo4jSession,
   Neo4jTransaction,
-} from "../../src/internal-types.js"
+} from "../../src/internal-types"
 
 describe("session-patcher", () => {
   let provider: NodeTracerProvider

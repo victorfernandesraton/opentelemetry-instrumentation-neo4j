@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { sanitizeCypher } from "../../src/cypher-sanitizer.js";
+import { sanitizeCypher } from "../../src/cypher-sanitizer";
 
 describe("cypher-sanitizer", () => {
   describe("sanitizeCypher", () => {

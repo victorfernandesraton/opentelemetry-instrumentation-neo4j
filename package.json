@@ -2,14 +2,15 @@
   "name": "@opentelemetry/instrumentation-neo4j",
   "version": "0.1.0",
   "description": "OpenTelemetry instrumentation for neo4j-driver",
-  "main": "dist/src/index.js",
-  "types": "dist/src/index.d.ts",
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
   "files": [
-    "dist/src/**/*.js",
-    "distt/src/**/*.d.ts"
+    "build/src/**/*.js",
+    "build/src/**/*.js.map",
+    "build/src/**/*.d.ts"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "check": "npm run typecheck && npm run lint",
     "lint": "npx eslint src/ test/",
     "typecheck": "npx tsc --noEmit",

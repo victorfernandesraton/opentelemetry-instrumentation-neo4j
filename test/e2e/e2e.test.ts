@@ -1,12 +1,12 @@
-import "./e2e-tracing.js"
+import "./e2e-tracing"
 import neo4j from "neo4j-driver"
 
 import { after, afterEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import type { NodeSDK } from "@opentelemetry/sdk-node"
 import type { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base"
-import { wrapDriverSession } from "../../src/session-patcher.js"
-import type { Neo4jSession } from "../../src/internal-types.js"
+import { wrapDriverSession } from "../../src/session-patcher"
+import type { Neo4jSession } from "../../src/internal-types"
 import {env} from  'node:process'
 
 const NEO4J_URI = env.NEO4J_URI || "bolt://localhost:7687"
@@ -28,7 +28,7 @@ const driver = neo4j.driver(
 // Wrapping manual garante que o session() gere spans de ciclo de vida.
 ;(driver as unknown as Record<string, CallableFunction>).session = wrapDriverSession(
   driver.session.bind(driver) as unknown as (...args: unknown[]) => Neo4jSession,
-  driver as unknown as import("../../src/internal-types.js").Neo4jDriver,
+  driver as unknown as import("../../src/internal-types").Neo4jDriver,
 )
 
 describe("Neo4j E2E (ESM + NodeSDK)", () => {

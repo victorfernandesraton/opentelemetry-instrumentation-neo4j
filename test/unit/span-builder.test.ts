@@ -10,7 +10,7 @@ import {
   createSessionSpan,
   endSpan,
   parseConnectionUri,
-} from "../../src/span-builder.js"
+} from "../../src/span-builder"
 
 function newTracer() {
   const exporter = new InMemorySpanExporter()

@@ -1,25 +1,25 @@
 import type { Span } from "@opentelemetry/api";
 import { context, trace } from "@opentelemetry/api";
-import { sanitizeCypher } from "./cypher-sanitizer.js";
-import { extractQuerySummary } from "./query-summary.js";
+import { sanitizeCypher } from "./cypher-sanitizer";
+import { extractQuerySummary } from "./query-summary";
 import {
   createQuerySpan,
   createSessionSpan,
   endSpan,
   parseConnectionUri,
-} from "./span-builder.js";
+} from "./span-builder";
 import {
   OPERATION_CLOSE_SESSION,
   OPERATION_EXECUTE_READ,
   OPERATION_EXECUTE_WRITE,
   OPERATION_OPEN_SESSION,
   OPERATION_RUN,
-} from "./semconv.js";
+} from "./semconv";
 import type {
   Neo4jDriver,
   Neo4jSession,
   Neo4jTransaction,
-} from "./internal-types.js";
+} from "./internal-types";
 
 const SESSION_SPAN_KEY = Symbol.for("otel.neo4j.sessionSpan");
 const DRIVER_INFO_KEY = Symbol.for("otel.neo4j.driverInfo");

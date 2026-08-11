@@ -4,8 +4,8 @@ import {
   isWrapped,
 } from "@opentelemetry/instrumentation"
 import type { InstrumentationModuleDefinition } from "@opentelemetry/instrumentation"
-import type { Neo4jInstrumentationConfig } from "./types.js"
-import type { Neo4jTransaction } from "./internal-types.js"
+import type { Neo4jInstrumentationConfig } from "./types"
+import type { Neo4jTransaction } from "./internal-types"
 import {
   configureSessionPatcher,
   wrapBeginTransaction,
@@ -14,8 +14,8 @@ import {
   wrapSessionExecuteRead,
   wrapSessionExecuteWrite,
   wrapSessionRun,
-} from "./session-patcher.js"
-import { VERSION } from "./version.js"
+} from "./session-patcher"
+import { VERSION } from "./version"
 
 export class Neo4jInstrumentation
   extends InstrumentationBase<Neo4jInstrumentationConfig> {

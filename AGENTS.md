@@ -102,8 +102,9 @@ No `--require`, `--import`, or preload needed. The import order alone ensures th
 │   ├── unit/
 │   │   ├── cypher-sanitizer.test.ts
 │   │   ├── query-summary.test.ts
-│   │   ├── span-builder.test.ts
-│   │   └── session-patcher.test.ts
+│   │   ├── semconv.test.ts
+│   │   ├── session-patcher.test.ts
+│   │   └── span-builder.test.ts
 │   ├── integration/
 │   │   └── instrumentation.test.ts
 │   └── e2e/
@@ -111,6 +112,7 @@ No `--require`, `--import`, or preload needed. The import order alone ensures th
 │       └── e2e.test.ts
 ├── package.json
 ├── tsconfig.json
+├── tsconfig.build.json
 ├── docker-compose.yml
 └── README.md
 ```
@@ -129,9 +131,9 @@ interface Neo4jInstrumentationConfig extends InstrumentationConfig {
 ## Build & test
 
 - **Platform**: Node.js >= 20
-- **Build**: `tsc` with `target: ES2022`, `module: commonjs`, output to `build/`
+- **Build**: `tsc -p tsconfig.build.json` with `target: ES2022`, `module: node16` (CJS output), output to `build/`
 - **Test framework**: `node:test` + `node:assert/strict`, run via `tsx`
-- **Import convention**: `.js` extensions on all relative imports
+- **Import convention**: extensionless relative imports (matching OTel contrib pattern)
 - **Tests require Neo4j** on `bolt://localhost:7687`
 
 **Commands:**
@@ -149,6 +151,15 @@ npm run test:cov
 # Lint + type check
 npm run check
 
+# Lint only
+npm run lint
+
+# Type check only
+npm run typecheck
+
+# Production build (no sourcemaps, no test files)
+npm run build
+
 # Unit tests (no Neo4j required)
 npm run test:unit
 
@@ -157,9 +168,6 @@ npm run test:integration
 
 # E2E tests (require Neo4j, real NodeSDK + ESM import
 npm run test:e2e
-
-# Type check
-npm run typecheck
 ```
 
 **Test strategy:**

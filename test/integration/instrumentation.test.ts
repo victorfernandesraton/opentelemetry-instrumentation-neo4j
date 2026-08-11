@@ -5,7 +5,7 @@ import { env } from "node:process"
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node"
 import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base"
 import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base"
-import { Neo4jInstrumentation } from "../../src/instrumentation.js"
+import { Neo4jInstrumentation } from "../../src/instrumentation"
 
 const NEO4J_URI = env.NEO4J_URI || "bolt://localhost:7687"
 const NEO4J_USER = env.NEO4J_USER || "neo4j"
