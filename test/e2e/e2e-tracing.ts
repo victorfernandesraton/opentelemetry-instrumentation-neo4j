@@ -1,3 +1,8 @@
+/*
+ * Copyright victorfernandesraton, opencode
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { NodeSDK } from "@opentelemetry/sdk-node"
 import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base"
 import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base"

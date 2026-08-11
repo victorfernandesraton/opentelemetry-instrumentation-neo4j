@@ -1,3 +1,8 @@
+/*
+ * Copyright victorfernandesraton, opencode
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import type { Span } from "@opentelemetry/api";
 import { context, trace } from "@opentelemetry/api";
 import { sanitizeCypher } from "./cypher-sanitizer";

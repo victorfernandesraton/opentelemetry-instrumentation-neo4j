@@ -1,3 +1,8 @@
+/*
+ * Copyright victorfernandesraton, opencode
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import type { Span, Tracer } from "@opentelemetry/api";
 import { SpanKind, SpanStatusCode } from "@opentelemetry/api";
 import {

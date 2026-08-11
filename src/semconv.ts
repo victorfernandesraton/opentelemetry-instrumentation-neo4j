@@ -1,3 +1,8 @@
+/*
+ * Copyright victorfernandesraton, opencode
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 export const ATTR_DB_SYSTEM = "db.system.name";
 export const ATTR_DB_OPERATION = "db.operation.name";
 export const ATTR_DB_NAMESPACE = "db.namespace";

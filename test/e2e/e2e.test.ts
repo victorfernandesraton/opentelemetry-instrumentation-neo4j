@@ -1,3 +1,8 @@
+/*
+ * Copyright victorfernandesraton, opencode
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import "./e2e-tracing"
 import neo4j from "neo4j-driver"
 

@@ -1,3 +1,8 @@
+/*
+ * Copyright victorfernandesraton, opencode
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 export interface Neo4jDriver {
   _config: { database?: string };
   _url: string;
