@@ -6,7 +6,6 @@
   "types": "build/src/index.d.ts",
   "files": [
     "build/src/**/*.js",
-    "build/src/**/*.js.map",
     "build/src/**/*.d.ts"
   ],
   "scripts": {
@@ -53,7 +52,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/open-telemetry/opentelemetry-js-contrib"
+    "url": "https://github.com/victorfernandesraton/otel-instrumentation-neo4j-node"
   },
   "publishConfig": {
     "access": "public"

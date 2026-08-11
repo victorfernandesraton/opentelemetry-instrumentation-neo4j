@@ -62,6 +62,6 @@ jobs:
           name: build
           path: build/
 
-      - run: npm publish --access public --provenance
+      - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.npm_token }}
