@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { sanitizeCypher } from "../src/cypher-sanitizer.js";
+import { sanitizeCypher } from "../../src/cypher-sanitizer.js";
 
 describe("cypher-sanitizer", () => {
   describe("sanitizeCypher", () => {
@@ -84,6 +84,18 @@ describe("cypher-sanitizer", () => {
     it("preserves numbers in property names", () => {
       const result = sanitizeCypher("RETURN n.value1, n.value2");
       assert.strictEqual(result, "RETURN n.value1, n.value2");
+    });
+
+    it("handles number with trailing dot", () => {
+      const result = sanitizeCypher("RETURN 3. AS n");
+      assert.strictEqual(result, "RETURN 3. AS n");
+    });
+
+    it("handles nested map in map", () => {
+      const result = sanitizeCypher(
+        "RETURN {a: {b: 'inner'}} AS nested",
+      );
+      assert(result.startsWith("RETURN "));
     });
   });
 });

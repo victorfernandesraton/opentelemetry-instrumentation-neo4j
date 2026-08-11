@@ -74,12 +74,9 @@ function tokenize(query: string): string[] {
 
     if (query[i] === "'" || query[i] === '"') {
       const quote = query[i];
-      let t = quote;
       i++;
       while (i < query.length) {
-        t += query[i];
         if (query[i] === "\\") {
-          t += query[i + 1] || "";
           i += 2;
           continue;
         }
@@ -93,10 +90,8 @@ function tokenize(query: string): string[] {
     }
 
     if (query[i] === "$") {
-      let t = "$";
       i++;
       while (i < query.length && /[a-zA-Z0-9_]/.test(query[i])) {
-        t += query[i];
         i++;
       }
       continue;

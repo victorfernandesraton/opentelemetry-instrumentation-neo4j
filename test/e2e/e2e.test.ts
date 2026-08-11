@@ -5,11 +5,13 @@ import { after, afterEach, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import type { NodeSDK } from "@opentelemetry/sdk-node"
 import type { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base"
-import { wrapDriverSession } from "../src/session-patcher.js"
+import { wrapDriverSession } from "../../src/session-patcher.js"
+import type { Neo4jSession } from "../../src/internal-types.js"
+import {env} from  'node:process'
 
-const NEO4J_URI = process.env.NEO4J_URI || "bolt://localhost:7687"
-const NEO4J_USER = process.env.NEO4J_USER || "neo4j"
-const NEO4J_PASSWORD = process.env.NEO4J_PASSWORD || "password"
+const NEO4J_URI = env.NEO4J_URI || "bolt://localhost:7687"
+const NEO4J_USER = env.NEO4J_USER || "neo4j"
+const NEO4J_PASSWORD = env.NEO4J_PASSWORD || "password"
 
 const { exporter, sdk } = (globalThis as Record<string, unknown>).__otelE2E as {
   exporter: InMemorySpanExporter
@@ -25,8 +27,8 @@ const driver = neo4j.driver(
 // então o _wrap no moduleExports.driver não propaga para a referência local.
 // Wrapping manual garante que o session() gere spans de ciclo de vida.
 ;(driver as unknown as Record<string, CallableFunction>).session = wrapDriverSession(
-  driver.session.bind(driver),
-  driver as unknown as import("../src/internal-types.js").Neo4jDriver,
+  driver.session.bind(driver) as unknown as (...args: unknown[]) => Neo4jSession,
+  driver as unknown as import("../../src/internal-types.js").Neo4jDriver,
 )
 
 describe("Neo4j E2E (ESM + NodeSDK)", () => {
@@ -122,8 +124,8 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     )
 
     assert.ok(
-      sessionSpans.length >= 1,
-      `Expected at least 1 session span, got ${sessionSpans.length}`,
+      sessionSpans.length >= 2,
+      `Expected at least 2 session spans, got ${sessionSpans.length}`,
     )
   })
 })

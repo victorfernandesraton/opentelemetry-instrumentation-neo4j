@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { extractQuerySummary } from "../src/query-summary.js";
+import { extractQuerySummary } from "../../src/query-summary.js";
 
 describe("query-summary", () => {
   describe("extractQuerySummary", () => {
@@ -81,6 +81,44 @@ describe("query-summary", () => {
         "MATCH (n:Person) RETURN n.name, n.email, n.phone, n.address, n.city, n.country, n.zip, n.age, n.gender, n.department, n.salary, n.startDate, n.endDate, n.manager, n.title, n.level, n.status, n.notes, n.createdAt, n.updatedAt";
       const result = extractQuerySummary(longQuery);
       assert(result.length <= 255);
+    });
+
+    it("handles backtick-quoted identifiers", () => {
+      const result = extractQuerySummary(
+        "MATCH (`Person`) RETURN `Person`",
+      );
+      assert(result.includes("MATCH"));
+      assert(result.includes("RETURN"));
+    });
+
+    it("handles escaped quotes in strings", () => {
+      const result = extractQuerySummary(
+        "RETURN 'it\\'s working' AS text",
+      );
+      assert.strictEqual(result, "RETURN");
+    });
+
+    it("includes LOAD CSV clause", () => {
+      const result = extractQuerySummary(
+        "LOAD CSV FROM 'file.csv' AS row RETURN row",
+      );
+      assert(result.includes("LOAD"));
+      assert(result.includes("RETURN"));
+    });
+
+    it("includes UNWIND clause", () => {
+      const result = extractQuerySummary(
+        "UNWIND [1, 2, 3] AS num RETURN num",
+      );
+      assert(result.includes("UNWIND"));
+      assert(result.includes("RETURN"));
+    });
+
+    it("handles trailing whitespace", () => {
+      const result = extractQuerySummary(
+        "MATCH (n) RETURN n   ",
+      );
+      assert.strictEqual(result, "MATCH RETURN");
     });
   });
 });

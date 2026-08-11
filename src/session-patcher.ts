@@ -9,6 +9,7 @@ import {
   parseConnectionUri,
 } from "./span-builder.js";
 import {
+  OPERATION_CLOSE_SESSION,
   OPERATION_EXECUTE_READ,
   OPERATION_EXECUTE_WRITE,
   OPERATION_OPEN_SESSION,
@@ -79,20 +80,35 @@ export function wrapSessionClose(
   original: () => Promise<void>,
 ): (this: Neo4jSession) => Promise<void> {
   return async function wrappedSessionClose(this: Neo4jSession): Promise<void> {
-    const span = (this as unknown as Record<symbol, Span>)[SESSION_SPAN_KEY];
+    const sessionSpan = (this as unknown as Record<symbol, Span>)[
+      SESSION_SPAN_KEY
+    ]
+    if (sessionSpan) {
+      const info = getSessionInfo(this)
+      createQuerySpan(
+        getTracer(),
+        OPERATION_CLOSE_SESSION,
+        "",
+        "",
+        info.database,
+        info.serverAddress,
+        info.serverPort,
+      ).end()
+    }
+
     try {
-      await original.call(this);
-      if (span) {
-        endSpan(span);
+      await original.call(this)
+      if (sessionSpan) {
+        endSpan(sessionSpan)
       }
     } catch (error) {
-      if (span) {
+      if (sessionSpan) {
         endSpan(
-          span,
+          sessionSpan,
           error instanceof Error ? error : new Error(String(error)),
-        );
+        )
       }
-      throw error;
+      throw error
     }
   };
 }

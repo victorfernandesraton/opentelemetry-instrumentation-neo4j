@@ -30,21 +30,21 @@ export class Neo4jInstrumentation
       requireParentSpan: this._config?.requireParentSpan ?? true,
     })
 
-    const s = this
+    const { _wrap, _unwrap, _diag } = this
 
     return [
       new InstrumentationNodeModuleDefinition(
         "neo4j-driver",
         [">=5.0.0 <7"],
         (moduleExports, moduleVersion) => {
-          s._diag.debug(`Patching neo4j-driver@${moduleVersion}`)
+          _diag.debug(`Patching neo4j-driver@${moduleVersion}`)
 
           const patchProto = (
             proto: Record<string, CallableFunction>,
           ) => {
             if (isWrapped(proto.run)) return
             if (proto.run) {
-              s._wrap(proto, "run", (original) =>
+              _wrap(proto, "run", (original) =>
                 wrapSessionRun(
                   original as unknown as (
                     query: string,
@@ -54,7 +54,7 @@ export class Neo4jInstrumentation
               )
             }
             if (proto.executeRead) {
-              s._wrap(proto, "executeRead", (original) =>
+              _wrap(proto, "executeRead", (original) =>
                 wrapSessionExecuteRead(
                   original as unknown as (
                     fn: (txc: Neo4jTransaction) => Promise<unknown>,
@@ -63,7 +63,7 @@ export class Neo4jInstrumentation
               )
             }
             if (proto.executeWrite) {
-              s._wrap(proto, "executeWrite", (original) =>
+              _wrap(proto, "executeWrite", (original) =>
                 wrapSessionExecuteWrite(
                   original as unknown as (
                     fn: (txc: Neo4jTransaction) => Promise<unknown>,
@@ -72,14 +72,14 @@ export class Neo4jInstrumentation
               )
             }
             if (proto.beginTransaction) {
-              s._wrap(proto, "beginTransaction", (original) =>
+              _wrap(proto, "beginTransaction", (original) =>
                 wrapBeginTransaction(
                   original as unknown as () => Promise<Neo4jTransaction>,
                 ),
               )
             }
             if (proto.close) {
-              s._wrap(proto, "close", (original) =>
+              _wrap(proto, "close", (original) =>
                 wrapSessionClose(original as unknown as () => Promise<void>),
               )
             }
@@ -105,14 +105,14 @@ export class Neo4jInstrumentation
           }
 
           if (!isWrapped(moduleExports.driver)) {
-            s._wrap(moduleExports, "driver", (original) => {
+            _wrap(moduleExports, "driver", (original) => {
               return function wrappedDriver(
                 this: unknown,
                 ...args: unknown[]
               ) {
                 const driver = original.apply(this, args)
                 if (!isWrapped(driver.session)) {
-                  s._wrap(driver, "session", (origSession) =>
+                  _wrap(driver, "session", (origSession) =>
                     wrapDriverSession(origSession, driver),
                   )
                 }
@@ -124,16 +124,16 @@ export class Neo4jInstrumentation
           return moduleExports
         },
         (moduleExports) => {
-          s._unwrap(moduleExports, "driver")
+          _unwrap(moduleExports, "driver")
 
           const unpatchProto = (
             proto: Record<string, CallableFunction>,
           ) => {
-            s._unwrap(proto, "run")
-            s._unwrap(proto, "executeRead")
-            s._unwrap(proto, "executeWrite")
-            s._unwrap(proto, "beginTransaction")
-            s._unwrap(proto, "close")
+            _unwrap(proto, "run")
+            _unwrap(proto, "executeRead")
+            _unwrap(proto, "executeWrite")
+            _unwrap(proto, "beginTransaction")
+            _unwrap(proto, "close")
           }
 
           const sessionClass = moduleExports.Session

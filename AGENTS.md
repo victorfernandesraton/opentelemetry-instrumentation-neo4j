@@ -99,9 +99,16 @@ No `--require`, `--import`, or preload needed. The import order alone ensures th
 │   ├── span-builder.ts       # creates CLIENT spans
 │   └── session-patcher.ts    # wraps Session.prototype methods
 ├── test/
-│   ├── cypher-sanitizer.test.ts
-│   ├── query-summary.test.ts
-│   └── instrumentation.test.ts
+│   ├── unit/
+│   │   ├── cypher-sanitizer.test.ts
+│   │   ├── query-summary.test.ts
+│   │   ├── span-builder.test.ts
+│   │   └── session-patcher.test.ts
+│   ├── integration/
+│   │   └── instrumentation.test.ts
+│   └── e2e/
+│       ├── e2e-tracing.ts
+│       └── e2e.test.ts
 ├── package.json
 ├── tsconfig.json
 ├── docker-compose.yml
@@ -130,27 +137,36 @@ interface Neo4jInstrumentationConfig extends InstrumentationConfig {
 **Commands:**
 
 ```bash
+# Single test file
+npm test -- test/unit/cypher-sanitizer.test.ts
+
+# All tests
+npm run test:all
+
+# Coverage
+npm run test:cov
+
+# Lint + type check
+npm run check
+
 # Unit tests (no Neo4j required)
 npm run test:unit
 
-# Integration tests (require Neo4j, low-level setup)
-docker compose up -d
+# Integration tests (require Neo4j, low-level setup
 npm run test:integration
 
-# E2E tests (require Neo4j, real NodeSDK + ESM import — matches production setup)
+# E2E tests (require Neo4j, real NodeSDK + ESM import
 npm run test:e2e
 
-# All tests
-npm test
-
 # Type check
-npx tsc --noEmit
+npm run typecheck
 ```
 
 **Test strategy:**
 
-- **Unit tests** (`cypher-sanitizer.test.ts`, `query-summary.test.ts`): pure functions, no I/O
-- **Integration tests** (`instrumentation.test.ts`): starts `Neo4jInstrumentation` + `NodeTracerProvider` + `InMemorySpanExporter`, creates driver via `require()`, runs Cypher, asserts span attributes match database semconv
+- **Unit tests** (`test/unit/`): pure functions, no I/O
+- **Integration tests** (`test/integration/`): starts `Neo4jInstrumentation` + `NodeTracerProvider` + `InMemorySpanExporter`, creates driver via `require()`, runs Cypher, asserts span attributes match database semconv
+- **E2E tests** (`test/e2e/`): starts `NodeSDK` with `Neo4jInstrumentation`, `import` estático de `neo4j-driver` (interceptado pela ordem de import), asserts spans
 
 ## References
 
