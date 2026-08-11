@@ -1,0 +1,49 @@
+{
+  "name": "@opentelemetry/instrumentation-neo4j",
+  "version": "0.1.0",
+  "description": "OpenTelemetry instrumentation for neo4j-driver",
+  "main": "build/src/index.js",
+  "types": "build/src/index.d.ts",
+  "files": [
+    "build/src/**/*.js",
+    "build/src/**/*.d.ts"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "tsx --test test/*.test.ts",
+    "test:unit": "tsx --test test/cypher-sanitizer.test.ts test/query-summary.test.ts",
+    "test:integration": "tsx --test test/instrumentation.test.ts",
+    "test:e2e": "tsx --test test/e2e.test.ts"
+  },
+  "peerDependencies": {
+    "@opentelemetry/api": "^1.0.0"
+  },
+  "dependencies": {
+    "@opentelemetry/instrumentation": "^0.57.0",
+    "@opentelemetry/semantic-conventions": "^1.28.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@eslint/json": "^2.0.1",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/sdk-node": "^0.57.0",
+    "@opentelemetry/sdk-trace-base": "^1.30.0",
+    "@opentelemetry/sdk-trace-node": "^1.30.0",
+    "@types/node": "^20.0.0",
+    "eslint": "^10.8.1",
+    "globals": "^17.9.0",
+    "jiti": "^2.7.0",
+    "neo4j-driver": "^6.0.0",
+    "tsx": "^4.23.12",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.67.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/open-telemetry/opentelemetry-js-contrib"
+  }
+}
