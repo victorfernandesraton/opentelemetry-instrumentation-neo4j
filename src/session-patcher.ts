@@ -25,6 +25,7 @@ import type {
   Neo4jSession,
   Neo4jTransaction,
 } from "./internal-types";
+import { VERSION } from "./version";
 
 const SESSION_SPAN_KEY = Symbol.for("otel.neo4j.sessionSpan");
 const DRIVER_INFO_KEY = Symbol.for("otel.neo4j.driverInfo");
@@ -44,7 +45,7 @@ export function configureSessionPatcher(
 }
 
 function getTracer() {
-  return trace.getTracer("otel-instrumentation-neo4j-node", "0.1.0");
+  return trace.getTracer("otel-instrumentation-neo4j-node", VERSION)
 }
 
 function hasActiveSpan(): boolean {
