@@ -154,118 +154,18 @@ export class Neo4jInstrumentation
 
   /**
    * Override enable() to force-load neo4j-driver via CJS require().
-   * This ensures the module hooks fire even when the project uses ESM
-   * imports (e.g., with tsx or type: "module") where the standard
-   * Module._load interception may not trigger for ESM->CJS interop.
+   * This ensures the Module._load hooks fire even when the project uses ESM
+   * imports with tsx or "type": "module", triggering modulePatch which wraps
+   * Session.prototype and driver.
    */
   override enable(): void {
     super.enable()
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const neo4j = require("neo4j-driver") as Record<string, unknown>
-
-      const mod = neo4j as Record<string, unknown> & {
-        driver: (...args: unknown[]) => unknown
-        Session?: { prototype: Record<string, CallableFunction> }
-      }
-
-      const { _wrap, _unwrap } = this
-
-      // If hooks already patched via super.enable(), isWrapped will skip.
-      // If the module was loaded via ESM before hooks were active,
-      // Session.prototype won't be wrapped yet — patch it manually.
-      const proto = findSessionProto(neo4j)
-      if (proto && !isWrapped(proto.run)) {
-        _wrap(proto, "run", (original) =>
-          wrapSessionRun(
-            original as unknown as (
-              query: string,
-              params?: Record<string, unknown>,
-            ) => unknown,
-          ),
-        )
-        if (proto.executeRead) {
-          _wrap(proto, "executeRead", (original) =>
-            wrapSessionExecuteRead(
-              original as unknown as (
-                fn: (txc: Neo4jTransaction) => Promise<unknown>,
-              ) => Promise<unknown>,
-            ),
-          )
-        }
-        if (proto.executeWrite) {
-          _wrap(proto, "executeWrite", (original) =>
-            wrapSessionExecuteWrite(
-              original as unknown as (
-                fn: (txc: Neo4jTransaction) => Promise<unknown>,
-              ) => Promise<unknown>,
-            ),
-          )
-        }
-        if (proto.beginTransaction) {
-          _wrap(proto, "beginTransaction", (original) =>
-            wrapBeginTransaction(
-              original as unknown as () => Promise<Neo4jTransaction>,
-            ),
-          )
-        }
-        if (proto.close) {
-          _wrap(proto, "close", (original) =>
-            wrapSessionClose(original as unknown as () => Promise<void>),
-          )
-        }
-      }
-
-      if (!isWrapped(mod.driver)) {
-        _wrap(mod, "driver", (original: unknown) =>
-          function wrappedDriver(
-            this: unknown,
-            ...args: unknown[]
-          ): unknown {
-            const d = (original as (...args: unknown[]) => unknown).apply(
-              this,
-              args,
-            ) as Record<string, CallableFunction>
-            if (!isWrapped(d.session)) {
-              _wrap(
-                d,
-                "session",
-                (origSession: unknown) =>
-                  wrapDriverSession(
-                    origSession as unknown as (
-                      ...a: unknown[]
-                    ) => import("./internal-types").Neo4jSession,
-                    d as unknown as import("./internal-types").Neo4jDriver,
-                  ),
-              )
-            }
-            return d
-          },
-        )
-      }
+      require("neo4j-driver")
     } catch {
       // neo4j-driver not installed — no-op
     }
   }
-}
-
-function findSessionProto(
-  neo4jModule: Record<string, unknown>,
-): Record<string, CallableFunction> | null {
-  const sessionClass = neo4jModule.Session
-  if (sessionClass) {
-    return (sessionClass as { prototype: Record<string, CallableFunction> })
-      .prototype
-  }
-  for (const key of Object.keys(neo4jModule)) {
-    const val = neo4jModule[key]
-    if (
-      typeof val === "function" &&
-      (val as { prototype?: { run?: unknown } }).prototype?.run
-    ) {
-      return (val as { prototype: Record<string, CallableFunction> }).prototype
-    }
-  }
-  return null
 }

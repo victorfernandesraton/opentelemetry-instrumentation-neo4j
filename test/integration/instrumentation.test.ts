@@ -63,7 +63,7 @@ describe("Neo4jInstrumentation", () => {
     const spans = exporter.getFinishedSpans()
     const neo4jSpan = spans.find(
       (s) => s.attributes["db.system.name"] === "neo4j",
-    )!
+    )
 
     assert.ok(neo4jSpan, "Expected a Neo4j span")
     assert.strictEqual(neo4jSpan.attributes["db.system.name"], "neo4j")
@@ -78,13 +78,13 @@ describe("Neo4jInstrumentation", () => {
     await new Promise((resolve) => setTimeout(resolve, 200))
 
     const spans = exporter.getFinishedSpans()
-    const querySpan = spans.find((s) => s.attributes["db.query.text"])!
+    const querySpan = spans.find((s) => s.attributes["db.query.text"])
 
     assert.ok(querySpan, "Expected span with query text")
     assert.strictEqual(
       querySpan.attributes["db.query.text"],
       "CREATE (n:Person {name: ?}) RETURN n",
-    )!
+    )
   })
 
   it("creates spans with extracted query summary", async () => {
@@ -95,13 +95,13 @@ describe("Neo4jInstrumentation", () => {
     await new Promise((resolve) => setTimeout(resolve, 200))
 
     const spans = exporter.getFinishedSpans()
-    const querySpan = spans.find((s) => s.attributes["db.query.summary"])!
+    const querySpan = spans.find((s) => s.attributes["db.query.summary"])
 
     assert.ok(querySpan, "Expected span with query summary")
     assert.strictEqual(
       querySpan.attributes["db.query.summary"],
       "MATCH Person RETURN",
-    )!
+    )
   })
 
   it("creates spans with server address and port", async () => {
@@ -114,7 +114,7 @@ describe("Neo4jInstrumentation", () => {
     const spans = exporter.getFinishedSpans()
     const neo4jSpan = spans.find(
       (s) => s.attributes["db.system.name"] === "neo4j",
-    )!
+    )
 
     assert.ok(neo4jSpan, "Expected a Neo4j span")
     assert.strictEqual(neo4jSpan.attributes["server.address"], "localhost")
@@ -138,8 +138,8 @@ describe("Neo4jInstrumentation", () => {
     assert.ok(
       sessionSpans.length >= 2,
       `Expected at least 2 session spans, got ${sessionSpans.length}`,
-    );
-  });
+    )
+  })
 
   it("instrumentation.disable() stops tracing", async () => {
     const session = driver.session()
@@ -158,5 +158,25 @@ describe("Neo4jInstrumentation", () => {
 
     const spans2 = exporter.getFinishedSpans()
     assert.ok(spans2.length >= spans1.length)
+
+    instrumentation.enable()
+  })
+
+  it("nao gera spans duplicados (CJS)", async () => {
+    const session = driver.session()
+    await session.run("RETURN 4 AS n")
+    await session.close()
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    const spans = exporter.getFinishedSpans()
+    const runSpans = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "RUN",
+    )
+    assert.strictEqual(
+      runSpans.length,
+      1,
+      `Expected exactly 1 RUN span, got ${runSpans.length}`,
+    )
   })
 })

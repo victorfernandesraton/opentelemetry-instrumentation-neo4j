@@ -125,4 +125,22 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
       `Expected at least 2 session spans, got ${sessionSpans.length}`,
     )
   })
+
+  it("nao gera spans duplicados (ESM)", async () => {
+    const session = driver.session()
+    await session.run("RETURN 3 AS n")
+    await session.close()
+
+    await new Promise((resolve) => setTimeout(resolve, 200))
+
+    const spans = exporter.getFinishedSpans()
+    const runSpans = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "RUN",
+    )
+    assert.strictEqual(
+      runSpans.length,
+      1,
+      `Expected exactly 1 RUN span, got ${runSpans.length}`,
+    )
+  })
 })
