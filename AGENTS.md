@@ -84,6 +84,10 @@ import neo4j from "neo4j-driver"; // 2nd: intercepted automatically
 
 No `--require`, `--import`, or preload needed. The import order alone ensures the hook is active before `neo4j-driver` is loaded.
 
+### ESM limitation
+
+Named exports from CJS modules are snapshotted at ESM link time (before evaluation). This means `Session.prototype` methods (run, executeRead, executeWrite) ARE patched because prototypes are shared objects, but `driver.session` wrapping does NOT propagate automatically. `OPEN_SESSION`/`CLOSE_SESSION` spans require a manual workaround in ESM — see [README.md](./README.md#esm-limitation-session-lifecycle-spans).
+
 ## Directory structure
 
 ```
