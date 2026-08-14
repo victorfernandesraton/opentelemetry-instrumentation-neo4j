@@ -3,198 +3,43 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+const STRING_PATTERN = /'(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"/g
+
+const BOOLEAN_NULL_PATTERN = /\b(?:true|false|null)\b/g
+
+const NUMBER_PATTERN = /(?<![.\w$])\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g
+
+const QPE_QUANTIFIER_PATTERN = /\{(\d+),(\d*)\}/g
+
+const QPE_SENTINEL_PREFIX = "\u0000qpe"
+
 export function sanitizeCypher(query: string): string {
-  if (!query) return "";
+  if (!query) return ""
 
-  let result = "";
-  let i = 0;
+  let sanitized = query
 
-  while (i < query.length) {
-    const char = query[i];
+  const qpeQuantifiers: string[] = []
+  sanitized = sanitized.replace(QPE_QUANTIFIER_PATTERN, (match) => {
+    qpeQuantifiers.push(match)
+    return `${QPE_SENTINEL_PREFIX}${qpeQuantifiers.length - 1}\u0000`
+  })
 
-    if (char === "$") {
-      const start = i;
-      i++;
-      while (i < query.length && /[a-zA-Z0-9_]/.test(query[i])) {
-        i++;
-      }
-      result += query.slice(start, i);
-      continue;
-    }
+  sanitized = sanitized.replace(STRING_PATTERN, "?")
 
-    if (char === "'" || char === '"') {
-      result += "?";
-      const quote = char;
-      i++;
-      while (i < query.length) {
-        if (query[i] === "\\") {
-          i += 2;
-          continue;
-        }
-        if (query[i] === quote) {
-          i++;
-          break;
-        }
-        i++;
-      }
-      continue;
-    }
+  let previous: string
+  do {
+    previous = sanitized
+    sanitized = sanitized.replace(/(?<![\w:-])\[(?:[^[\]]*)\]/g, "[?]")
+  } while (sanitized !== previous)
 
-    if (char === "[") {
-      result += "[?]";
-      i = findClosingBracket(query, i) + 1;
-      continue;
-    }
+  sanitized = sanitized.replace(BOOLEAN_NULL_PATTERN, "?")
 
-    if (char === "{") {
-      result += sanitizeMapContent(query, i);
-      i = findClosingBrace(query, i) + 1;
-      continue;
-    }
+  sanitized = sanitized.replace(NUMBER_PATTERN, "?")
 
-    const prevChar = result.length > 0 ? result[result.length - 1] : " ";
-    const isIdentifierContext = /[a-zA-Z_.]/.test(prevChar);
+  sanitized = sanitized.replace(
+    new RegExp(`${QPE_SENTINEL_PREFIX}(\\d+)\u0000`, "g"),
+    (_, index) => qpeQuantifiers[Number(index)],
+  )
 
-    if (/[0-9]/.test(char) && !isIdentifierContext) {
-      i++;
-      while (i < query.length && /[0-9.eE]/.test(query[i])) {
-        i++;
-      }
-      if (query[i - 1] === ".") {
-        result += query.slice(i - 2, i - 1);
-        i--;
-        continue;
-      }
-      result += "?";
-      continue;
-    }
-
-    if (
-      query.slice(i, i + 4) === "true" &&
-      !/[a-zA-Z0-9_]/.test(query[i + 4] || "")
-    ) {
-      result += "?";
-      i += 4;
-      continue;
-    }
-
-    if (
-      query.slice(i, i + 5) === "false" &&
-      !/[a-zA-Z0-9_]/.test(query[i + 5] || "")
-    ) {
-      result += "?";
-      i += 5;
-      continue;
-    }
-
-    if (
-      query.slice(i, i + 4) === "null" &&
-      !/[a-zA-Z0-9_]/.test(query[i + 4] || "")
-    ) {
-      result += "?";
-      i += 4;
-      continue;
-    }
-
-    result += char;
-    i++;
-  }
-
-  return result;
-}
-
-function sanitizeMapContent(query: string, start: number): string {
-  let i = start + 1;
-  let depth = 1;
-  const entries: string[] = [];
-  let key = "";
-  let hasColon = false;
-
-  while (i < query.length && depth > 0) {
-    while (i < query.length && /\s/.test(query[i])) i++;
-    if (i >= query.length) break;
-
-    if (query[i] === "{") {
-      depth++;
-      i++;
-      continue;
-    }
-    if (query[i] === "}") {
-      depth--;
-      i++;
-      continue;
-    }
-    if (query[i] === ",") {
-      if (key) {
-        entries.push(hasColon ? key : key + ": ?");
-      }
-      key = "";
-      hasColon = false;
-      i++;
-      continue;
-    }
-    if (query[i] === ":") {
-      hasColon = true;
-      i++;
-      while (i < query.length && /\s/.test(query[i])) i++;
-
-      if (query[i] === "$") {
-        const valueStart = i;
-        i++;
-        while (i < query.length && /[a-zA-Z0-9_]/.test(query[i])) i++;
-        key += ": " + query.slice(valueStart, i);
-      } else {
-        key += ": ?";
-        while (
-          i < query.length && query[i] !== "," && query[i] !== "}" &&
-          query[i] !== "{"
-        ) {
-          if (query[i] === "'" || query[i] === '"') {
-            const q = query[i];
-            i++;
-            while (i < query.length && query[i] !== q) {
-              if (query[i] === "\\") i++;
-              i++;
-            }
-            i++;
-            continue;
-          }
-          i++;
-        }
-      }
-      continue;
-    }
-
-    const identStart = i;
-    while (i < query.length && /[a-zA-Z0-9_]/.test(query[i])) i++;
-    key = query.slice(identStart, i);
-  }
-
-  if (key) {
-    entries.push(hasColon ? key : key + ": ?");
-  }
-
-  return "{" + entries.join(", ") + "}";
-}
-
-function findClosingBracket(query: string, start: number): number {
-  let depth = 1;
-  let i = start + 1;
-  while (i < query.length && depth > 0) {
-    if (query[i] === "[") depth++;
-    if (query[i] === "]") depth--;
-    i++;
-  }
-  return i - 1;
-}
-
-function findClosingBrace(query: string, start: number): number {
-  let depth = 1;
-  let i = start + 1;
-  while (i < query.length && depth > 0) {
-    if (query[i] === "{") depth++;
-    if (query[i] === "}") depth--;
-    i++;
-  }
-  return i - 1;
+  return sanitized
 }

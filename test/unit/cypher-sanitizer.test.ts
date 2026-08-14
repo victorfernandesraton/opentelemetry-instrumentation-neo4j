@@ -93,14 +93,54 @@ describe("cypher-sanitizer", () => {
 
     it("handles number with trailing dot", () => {
       const result = sanitizeCypher("RETURN 3. AS n");
-      assert.strictEqual(result, "RETURN 3. AS n");
+      assert.strictEqual(result, "RETURN ?. AS n");
     });
 
     it("handles nested map in map", () => {
       const result = sanitizeCypher(
         "RETURN {a: {b: 'inner'}} AS nested",
       );
-      assert(result.startsWith("RETURN "));
+      assert.strictEqual(result, "RETURN {a: {b: ?}} AS nested");
+    });
+
+    it("handles map with string keys", () => {
+      const result = sanitizeCypher('RETURN { "key": "value" } AS m');
+      assert.strictEqual(result, "RETURN { ?: ? } AS m");
+    });
+
+    it("handles special chars in map keys", () => {
+      const result = sanitizeCypher("RETURN {@foo: 1} AS m");
+      assert.strictEqual(result, "RETURN {@foo: ?} AS m");
+    });
+
+    it("handles list inside map value", () => {
+      const result = sanitizeCypher("RETURN {a: $p, b: [1,2]} AS m");
+      assert.strictEqual(result, "RETURN {a: $p, b: [?]} AS m");
+    });
+
+    it("handles unterminated string without hanging", () => {
+      const result = sanitizeCypher("RETURN 'unterminated");
+      assert.strictEqual(result, "RETURN 'unterminated");
+    });
+
+    it("handles unterminated map without hanging", () => {
+      const result = sanitizeCypher("RETURN {a: 1");
+      assert.strictEqual(result, "RETURN {a: ?");
+    });
+
+    it("handles placeholder followed by special char", () => {
+      const result = sanitizeCypher("RETURN $@ AS x");
+      assert.strictEqual(result, "RETURN $@ AS x");
+    });
+
+    it("preserves QPE quantifiers", () => {
+      const result = sanitizeCypher(
+        "MATCH SHORTEST 1 (a)(()-[:ROAD]->()){1,5}(b) RETURN b",
+      );
+      assert.strictEqual(
+        result,
+        "MATCH SHORTEST ? (a)(()-[:ROAD]->()){1,5}(b) RETURN b",
+      );
     });
   });
 });
