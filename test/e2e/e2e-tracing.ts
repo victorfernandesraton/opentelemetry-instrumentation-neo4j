@@ -6,7 +6,7 @@
 import { NodeSDK } from "@opentelemetry/sdk-node"
 import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base"
 import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base"
-import { Neo4jInstrumentation } from "../../src/instrumentation"
+import { Neo4jInstrumentation } from "../../src/instrumentation.ts"
 
 const exporter = new InMemorySpanExporter()
 

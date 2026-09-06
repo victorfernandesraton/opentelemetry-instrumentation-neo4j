@@ -15,7 +15,7 @@ import {
   createSessionSpan,
   endSpan,
   parseConnectionUri,
-} from "../../src/span-builder"
+} from "../../src/span-builder.ts"
 
 function newTracer() {
   const exporter = new InMemorySpanExporter()

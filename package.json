@@ -1,7 +1,8 @@
 {
   "name": "otel-instrumentation-neo4j-node",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "OpenTelemetry instrumentation for neo4j-driver",
+  "type": "module",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "files": [
@@ -11,9 +12,11 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "npm run typecheck && npm run lint",
-    "lint": "npx eslint src/ test/",
+    "lint": "npx eslint src/ test/ bench/",
     "typecheck": "npx tsc --noEmit",
     "test": "node --require tsx --test",
+    "bench": "tsx bench/e2e.ts",
+    "bench:micro": "tsx bench/micro.ts",
     "test:all": "npm run test -- test/**/*.test.ts",
     "test:cov": "npm run test -- --experimental-test-coverage test/**/*.test.ts",
     "test:unit": "npm run test -- test/unit/*.test.ts",

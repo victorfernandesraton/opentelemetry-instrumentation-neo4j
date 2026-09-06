@@ -15,12 +15,12 @@ import {
   wrapSessionExecuteWrite,
   wrapBeginTransaction,
   wrapDriverSession,
-} from "../../src/session-patcher"
+} from "../../src/session-patcher.ts"
 import type {
   Neo4jDriver,
   Neo4jSession,
   Neo4jTransaction,
-} from "../../src/internal-types"
+} from "../../src/internal-types.ts"
 
 describe("session-patcher", () => {
   let provider: NodeTracerProvider
@@ -130,7 +130,9 @@ describe("session-patcher", () => {
 
     const wrapped = wrapSessionExecuteRead(
       (fn: (txc: Neo4jTransaction) => Promise<string>) =>
-        fn({} as unknown as Neo4jTransaction),
+        fn({
+          run: async () => ({ records: [] }),
+        } as unknown as Neo4jTransaction),
     )
 
     const session = {
@@ -166,7 +168,9 @@ describe("session-patcher", () => {
 
     const wrapped = wrapSessionExecuteWrite(
       (fn: (txc: Neo4jTransaction) => Promise<string>) =>
-        fn({} as unknown as Neo4jTransaction),
+        fn({
+          run: async () => ({ records: [] }),
+        } as unknown as Neo4jTransaction),
     )
 
     const session = {

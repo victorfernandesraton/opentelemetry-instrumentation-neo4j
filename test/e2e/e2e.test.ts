@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import "./e2e-tracing"
+import "./e2e-tracing.ts"
 import neo4j from "neo4j-driver"
 
 import { after, afterEach, describe, it } from "node:test"
@@ -26,6 +26,8 @@ const driver = neo4j.driver(
   neo4j.auth.basic(NEO4J_USER, NEO4J_PASSWORD),
 )
 
+const settle = () => new Promise((resolve) => setTimeout(resolve, 200))
+
 describe("Neo4j E2E (ESM + NodeSDK)", () => {
   after(async () => {
     await driver.close()
@@ -41,7 +43,7 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     await session.run("RETURN 1 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const span = spans.find(
@@ -58,7 +60,7 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     await session.run("CREATE (n:Person {name: 'Alice'}) RETURN n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const span = spans.find((s) => s.attributes["db.query.text"])
@@ -75,7 +77,7 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     await session.run("MATCH (n:Person) RETURN n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const span = spans.find((s) => s.attributes["db.query.summary"])
@@ -92,7 +94,7 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     await session.run("RETURN 1 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const span = spans.find(
@@ -104,26 +106,81 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     assert.ok(span.attributes["server.port"], "Expected server.port attribute")
   })
 
-  it("cria span de sessao (open/close)", { todo: true }, async () => {
-    // TODO: session lifecycle spans via ESM require manual driver.session
-    // wrapping (see README.md ESM usage section for workaround).
+  it("cria span de sessao (open/close) sem workaround", async () => {
     const session = driver.session()
     await session.run("RETURN 2 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
-    const sessionSpans = spans.filter(
-      (s) =>
-        s.attributes["db.operation.name"] === "OPEN_SESSION" ||
-        s.attributes["db.operation.name"] === "CLOSE_SESSION",
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "OPEN_SESSION")
+        .length,
+      1,
+    )
+    assert.strictEqual(
+      spans.filter(
+        (s) => s.attributes["db.operation.name"] === "CLOSE_SESSION",
+      ).length,
+      1,
     )
 
-    assert.ok(
-      sessionSpans.length >= 2,
-      `Expected at least 2 session spans, got ${sessionSpans.length}`,
+    const ids = spans.map((s) => s.spanContext().spanId)
+    assert.strictEqual(new Set(ids).size, ids.length)
+  })
+
+  it("executeRead com 2x txc.run gera 1 EXECUTE_READ + 2 RUN (sem duplicar)", async () => {
+    const session = driver.session()
+    await session.executeRead(async (txc) => {
+      await txc.run("RETURN 1 AS n")
+      await txc.run("RETURN 2 AS n")
+      return "done"
+    })
+    await session.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "EXECUTE_READ")
+        .length,
+      1,
     )
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
+      2,
+    )
+
+    const ids = spans.map((s) => s.spanContext().spanId)
+    assert.strictEqual(new Set(ids).size, ids.length)
+  })
+
+  it("beginTransaction com 2x txc.run gera exatamente 2 RUN (sem duplicar)", async () => {
+    const session = driver.session()
+    const txc = await session.beginTransaction()
+    await txc.run("RETURN 1 AS n")
+    await txc.run("RETURN 2 AS n")
+    await txc.commit()
+    await session.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
+      2,
+    )
+    assert.strictEqual(
+      spans.filter(
+        (s) => s.attributes["db.operation.name"] === "EXECUTE_READ" ||
+          s.attributes["db.operation.name"] === "EXECUTE_WRITE",
+      ).length,
+      0,
+    )
+
+    const ids = spans.map((s) => s.spanContext().spanId)
+    assert.strictEqual(new Set(ids).size, ids.length)
   })
 
   it("nao gera spans duplicados (ESM)", async () => {
@@ -131,16 +188,12 @@ describe("Neo4j E2E (ESM + NodeSDK)", () => {
     await session.run("RETURN 3 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
-    const runSpans = spans.filter(
-      (s) => s.attributes["db.operation.name"] === "RUN",
-    )
     assert.strictEqual(
-      runSpans.length,
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
       1,
-      `Expected exactly 1 RUN span, got ${runSpans.length}`,
     )
   })
 })
