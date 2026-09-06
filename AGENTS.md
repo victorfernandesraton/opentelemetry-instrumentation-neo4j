@@ -33,7 +33,7 @@ The instrumentation does **not** patch `rxSession()` or the reactive API in v1.
 
 ### Module registration
 
-Finds `Session` in `neo4j-driver` module exports and patches its prototype directly. Works with driver versions `>=5.0.0 <7`. Both `lib/session.js` (5.x) and the `Session` export (6.x) are handled via iterative prototype detection.
+Finds `Session` in the `neo4j-driver` module exports (`moduleExports.Session`) and patches its prototype directly. Targets **`neo4j-driver@6.x` only**. Only the real `Session` class is patched — `Transaction`, `ManagedTransaction`, `RxSession`, `RxTransaction` and `RxManagedTransaction` are **never** patched (patching them caused duplicate `RUN` spans because `ManagedTransaction.run` delegates to `Transaction.run`).
 
 ### How patching works
 
@@ -74,7 +74,7 @@ Extract clause keywords as low-cardinality summary, e.g.:
 2. **`@opentelemetry/api` is a `peerDependency`**, not a `dependency`. Use `^1.0.0`.
 3. **Do NOT patch `rxSession()` or reactive methods** in v1.
 4. **`requireParentSpan: true`** by default.
-5. **`neo4j-driver` must be required before the SDK starts** for module hooks to intercept it.
+5. **`neo4j-driver` is force-loaded by `enable()`** via `createRequire(import.meta.url)`, so module hooks intercept it even in ESM projects.
 6. **In ESM projects, the tracing setup import must be the very first import** in the entry point file:
 
 ```ts
@@ -84,9 +84,9 @@ import neo4j from "neo4j-driver"; // 2nd: intercepted automatically
 
 No `--require`, `--import`, or preload needed. The import order alone ensures the hook is active before `neo4j-driver` is loaded.
 
-### ESM limitation
+### ESM
 
-Named exports from CJS modules are snapshotted at ESM link time (before evaluation). This means `Session.prototype` methods (run, executeRead, executeWrite) ARE patched because prototypes are shared objects, but `driver.session` wrapping does NOT propagate automatically. `OPEN_SESSION`/`CLOSE_SESSION` spans require a manual workaround in ESM — see [README.md](./README.md#esm-limitation-session-lifecycle-spans).
+Named exports from CJS modules are snapshotted at ESM link time (before evaluation). To work around this, `Neo4jInstrumentation.enable()` force-loads `neo4j-driver` via `createRequire(import.meta.url)("neo4j-driver")` before the ESM import is evaluated. As long as the tracing setup import runs first (see constraint 6), both query spans and `OPEN_SESSION`/`CLOSE_SESSION` lifecycle spans work in ESM without manual wrapping.
 
 ## Directory structure
 
@@ -135,9 +135,9 @@ interface Neo4jInstrumentationConfig extends InstrumentationConfig {
 ## Build & test
 
 - **Platform**: Node.js >= 20
-- **Build**: `tsc -p tsconfig.build.json` with `target: ES2022`, `module: node16` (CJS output), output to `build/`
+- **Build**: `tsc -p tsconfig.build.json` with `target: ES2022`, `module: nodenext` (ESM output, `"type": "module"`), output to `build/`
 - **Test framework**: `node:test` + `node:assert/strict`, run via `tsx`
-- **Import convention**: extensionless relative imports (matching OTel contrib pattern)
+- **Import convention**: relative imports use explicit `.ts` extensions (rewritten to `.js` in the emitted build via `rewriteRelativeImportExtensions`)
 - **Tests require Neo4j** on `bolt://localhost:7687`
 
 **Commands:**
@@ -172,6 +172,12 @@ npm run test:integration
 
 # E2E tests (require Neo4j, real NodeSDK + ESM import
 npm run test:e2e
+
+# Benchmark — micro (CPU dos wrappers, sem Neo4j)
+npm run bench:micro
+
+# Benchmark — e2e (requer Neo4j; cenários em processos isolados)
+npm run bench
 ```
 
 **Test strategy:**

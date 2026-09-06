@@ -5,27 +5,27 @@
 
 import type { Span } from "@opentelemetry/api";
 import { context, trace } from "@opentelemetry/api";
-import { sanitizeCypher } from "./cypher-sanitizer";
-import { extractQuerySummary } from "./query-summary";
+import { sanitizeCypher } from "./cypher-sanitizer.ts";
+import { extractQuerySummary } from "./query-summary.ts";
 import {
   createQuerySpan,
   createSessionSpan,
   endSpan,
   parseConnectionUri,
-} from "./span-builder";
+} from "./span-builder.ts";
 import {
   OPERATION_CLOSE_SESSION,
   OPERATION_EXECUTE_READ,
   OPERATION_EXECUTE_WRITE,
   OPERATION_OPEN_SESSION,
   OPERATION_RUN,
-} from "./semconv";
+} from "./semconv.ts";
 import type {
   Neo4jDriver,
   Neo4jSession,
   Neo4jTransaction,
-} from "./internal-types";
-import { VERSION } from "./version";
+} from "./internal-types.ts";
+import { VERSION } from "./version.ts";
 
 const SESSION_SPAN_KEY = Symbol.for("otel.neo4j.sessionSpan");
 const DRIVER_INFO_KEY = Symbol.for("otel.neo4j.driverInfo");
@@ -199,7 +199,13 @@ export function wrapSessionExecuteRead<T>(
     const ctx = trace.setSpan(context.active(), span);
 
     try {
-      const result = await context.with(ctx, () => original.call(this, fn));
+      const result = await original.call(
+        this,
+        context.bind(ctx, (txc: Neo4jTransaction) => {
+          wrapTxcRun(txc, this);
+          return fn(txc);
+        }),
+      );
       endSpan(span);
       return result;
     } catch (error) {
@@ -238,7 +244,13 @@ export function wrapSessionExecuteWrite<T>(
     const ctx = trace.setSpan(context.active(), span);
 
     try {
-      const result = await context.with(ctx, () => original.call(this, fn));
+      const result = await original.call(
+        this,
+        context.bind(ctx, (txc: Neo4jTransaction) => {
+          wrapTxcRun(txc, this);
+          return fn(txc);
+        }),
+      );
       endSpan(span);
       return result;
     } catch (error) {
@@ -255,13 +267,17 @@ export function wrapBeginTransaction(
     this: Neo4jSession,
   ): Promise<Neo4jTransaction> {
     const txc = await original.call(this);
-
-    const originalTxcRun = txc.run.bind(txc);
-    (txc as unknown as Record<string, CallableFunction>).run =
-      wrapTransactionRun(originalTxcRun, this);
-
+    wrapTxcRun(txc, this);
     return txc;
   };
+}
+
+function wrapTxcRun(txc: Neo4jTransaction, session: Neo4jSession): void {
+  const originalTxcRun = txc.run.bind(txc);
+  (txc as unknown as Record<string, CallableFunction>).run = wrapTransactionRun(
+    originalTxcRun,
+    session,
+  );
 }
 
 function wrapTransactionRun(

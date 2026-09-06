@@ -47,21 +47,7 @@ import neo4j from "neo4j-driver"; // 2nd: intercepted automatically
 
 No `--require`, `--import`, or preload needed.
 
-### ESM limitation: session lifecycle spans
-
-Due to how Node.js creates ESM namespaces from CJS modules (snapshot at link time), `driver.session` wrapping does not propagate automatically in ESM. Query spans (`RUN`, `EXECUTE_READ`, `EXECUTE_WRITE`) work normally because `Session.prototype` is shared.
-
-For `OPEN_SESSION` / `CLOSE_SESSION` spans in ESM, wrap `driver.session` manually after creating the driver:
-
-```ts
-import neo4j from "neo4j-driver";
-import { wrapDriverSession } from "otel-instrumentation-neo4j-node/session-patcher";
-
-const driver = neo4j.driver("neo4j://localhost", neo4j.auth.basic("neo4j", "password"));
-driver.session = wrapDriverSession(driver.session.bind(driver), driver);
-```
-
-CJS users (`require`) do **not** need this workaround.
+The instrumentation's `enable()` force-loads `neo4j-driver` through CommonJS before the ESM import is evaluated, so both query spans and `OPEN_SESSION` / `CLOSE_SESSION` lifecycle spans work in ESM without any manual wrapping.
 ## Traced operations
 
 | Operation | Span name | Attributes |

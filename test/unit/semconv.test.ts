@@ -13,7 +13,7 @@ import {
   OPERATION_EXECUTE_WRITE,
   OPERATION_OPEN_SESSION,
   OPERATION_CLOSE_SESSION,
-} from "../../src/semconv"
+} from "../../src/semconv.ts"
 
 describe("semconv", () => {
   it("defines all DB semconv constants", () => {

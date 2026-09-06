@@ -6,15 +6,21 @@
 import { after, afterEach, before, describe, it } from "node:test"
 import assert from "node:assert/strict"
 import { env } from "node:process"
+import { createRequire } from "node:module"
+import { trace } from "@opentelemetry/api"
 
 import { NodeTracerProvider } from "@opentelemetry/sdk-trace-node"
 import { SimpleSpanProcessor } from "@opentelemetry/sdk-trace-base"
 import { InMemorySpanExporter } from "@opentelemetry/sdk-trace-base"
-import { Neo4jInstrumentation } from "../../src/instrumentation"
+import { Neo4jInstrumentation } from "../../src/instrumentation.ts"
+
+const require = createRequire(import.meta.url)
 
 const NEO4J_URI = env.NEO4J_URI || "bolt://localhost:7687"
 const NEO4J_USER = env.NEO4J_USER || "neo4j"
 const NEO4J_PASSWORD = env.NEO4J_PASSWORD || "password"
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 200))
 
 let driver: import("neo4j-driver").Driver
 let exporter: InMemorySpanExporter
@@ -36,7 +42,6 @@ describe("Neo4jInstrumentation", () => {
     instrumentation.setTracerProvider(provider)
     instrumentation.enable()
 
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const neo4j = require("neo4j-driver")
     driver = neo4j.driver(
       NEO4J_URI,
@@ -53,29 +58,48 @@ describe("Neo4jInstrumentation", () => {
     exporter.reset()
   })
 
-  it("creates a span for session.run", async () => {
+  it("cria um span RUN para session.run", async () => {
     const session = driver.session()
     await session.run("RETURN 1 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
-    const neo4jSpan = spans.find(
-      (s) => s.attributes["db.system.name"] === "neo4j",
+    const runSpans = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "RUN",
     )
 
-    assert.ok(neo4jSpan, "Expected a Neo4j span")
-    assert.strictEqual(neo4jSpan.attributes["db.system.name"], "neo4j")
-    assert.strictEqual(neo4jSpan.attributes["db.operation.name"], "RUN")
+    assert.strictEqual(runSpans.length, 1)
+    assert.strictEqual(runSpans[0].attributes["db.system.name"], "neo4j")
+    assert.strictEqual(runSpans[0].attributes["db.operation.name"], "RUN")
   })
 
-  it("creates spans with sanitized query text", async () => {
+  it("3x session.run gera exatamente 3 spans RUN com spanIds unicos", async () => {
+    const session = driver.session()
+    await session.run("RETURN 1 AS n")
+    await session.run("RETURN 2 AS n")
+    await session.run("RETURN 3 AS n")
+    await session.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
+    const runSpans = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "RUN",
+    )
+    assert.strictEqual(runSpans.length, 3)
+
+    const ids = spans.map((s) => s.spanContext().spanId)
+    assert.strictEqual(new Set(ids).size, ids.length)
+  })
+
+  it("cria spans com query sanitizada", async () => {
     const session = driver.session()
     await session.run("CREATE (n:Person {name: 'Alice'}) RETURN n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const querySpan = spans.find((s) => s.attributes["db.query.text"])
@@ -87,12 +111,12 @@ describe("Neo4jInstrumentation", () => {
     )
   })
 
-  it("creates spans with extracted query summary", async () => {
+  it("cria spans com summary extraido", async () => {
     const session = driver.session()
     await session.run("MATCH (n:Person) RETURN n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const querySpan = spans.find((s) => s.attributes["db.query.summary"])
@@ -104,12 +128,12 @@ describe("Neo4jInstrumentation", () => {
     )
   })
 
-  it("creates spans with server address and port", async () => {
+  it("registra server.address e server.port", async () => {
     const session = driver.session()
     await session.run("RETURN 1 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
     const neo4jSpan = spans.find(
@@ -121,62 +145,243 @@ describe("Neo4jInstrumentation", () => {
     assert.ok(neo4jSpan.attributes["server.port"], "Expected server.port")
   })
 
-  it("creates a session span for open and close", async () => {
+  it("sessao gera 1 OPEN_SESSION e 1 CLOSE_SESSION", async () => {
     const session = driver.session()
     await session.run("RETURN 2 AS n")
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
-    const sessionSpans = spans.filter(
-      (s) =>
-        s.attributes["db.operation.name"] === "OPEN_SESSION" ||
-        s.attributes["db.operation.name"] === "CLOSE_SESSION",
+    const open = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "OPEN_SESSION",
+    )
+    const close = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "CLOSE_SESSION",
     )
 
-    assert.ok(
-      sessionSpans.length >= 2,
-      `Expected at least 2 session spans, got ${sessionSpans.length}`,
+    assert.strictEqual(open.length, 1)
+    assert.strictEqual(close.length, 1)
+  })
+
+  it("executeRead sem txc.run gera 1 EXECUTE_READ e 0 RUN", async () => {
+    const session = driver.session()
+    await session.executeRead(async () => "done")
+    await session.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "EXECUTE_READ")
+        .length,
+      1,
+    )
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
+      0,
     )
   })
 
-  it("instrumentation.disable() stops tracing", async () => {
+  it("executeRead com 2x txc.run gera 1 EXECUTE_READ + 2 RUN (sem duplicar)", async () => {
     const session = driver.session()
-    await session.run("RETURN 3 AS n")
+    await session.executeRead(async (txc) => {
+      await txc.run("RETURN 1 AS n")
+      await txc.run("RETURN 2 AS n")
+      return "done"
+    })
     await session.close()
 
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    const spans1 = exporter.getFinishedSpans()
-    assert.ok(
-      spans1.some((s) => s.attributes["db.operation.name"] === "RUN"),
-      "Expected spans before disable",
-    )
-
-    instrumentation.disable()
-
-    const spans2 = exporter.getFinishedSpans()
-    assert.ok(spans2.length >= spans1.length)
-
-    instrumentation.enable()
-  })
-
-  it("nao gera spans duplicados (CJS)", async () => {
-    const session = driver.session()
-    await session.run("RETURN 4 AS n")
-    await session.close()
-
-    await new Promise((resolve) => setTimeout(resolve, 200))
+    await settle()
 
     const spans = exporter.getFinishedSpans()
+    const readSpans = spans.filter(
+      (s) => s.attributes["db.operation.name"] === "EXECUTE_READ",
+    )
     const runSpans = spans.filter(
       (s) => s.attributes["db.operation.name"] === "RUN",
     )
+
+    assert.strictEqual(readSpans.length, 1)
+    assert.strictEqual(runSpans.length, 2)
+
+    const ids = spans.map((s) => s.spanContext().spanId)
+    assert.strictEqual(new Set(ids).size, ids.length)
+
+    for (const run of runSpans) {
+      assert.strictEqual(
+        run.parentSpanContext?.spanId,
+        readSpans[0].spanContext().spanId,
+      )
+    }
+  })
+
+  it("executeWrite com 1x txc.run gera 1 EXECUTE_WRITE + 1 RUN", async () => {
+    const session = driver.session()
+    await session.executeWrite(async (txc) => {
+      await txc.run("CREATE (n:Person {name: 'Alice'}) RETURN n")
+    })
+    await session.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
     assert.strictEqual(
-      runSpans.length,
+      spans.filter(
+        (s) => s.attributes["db.operation.name"] === "EXECUTE_WRITE",
+      ).length,
       1,
-      `Expected exactly 1 RUN span, got ${runSpans.length}`,
     )
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
+      1,
+    )
+  })
+
+  it("beginTransaction com 2x txc.run gera exatamente 2 RUN (sem duplicar)", async () => {
+    const session = driver.session()
+    const txc = await session.beginTransaction()
+    await txc.run("RETURN 1 AS n")
+    await txc.run("RETURN 2 AS n")
+    await txc.commit()
+    await session.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
+      2,
+    )
+    assert.strictEqual(
+      spans.filter(
+        (s) => s.attributes["db.operation.name"] === "EXECUTE_READ" ||
+          s.attributes["db.operation.name"] === "EXECUTE_WRITE",
+      ).length,
+      0,
+    )
+
+    const ids = spans.map((s) => s.spanContext().spanId)
+    assert.strictEqual(new Set(ids).size, ids.length)
+  })
+
+  it("disable/enable nao acumula wrappers nem duplica spans", async () => {
+    const runOnce = async (query: string) => {
+      const session = driver.session()
+      await session.run(query)
+      await session.close()
+    }
+
+    await runOnce("RETURN 1 AS n")
+    await settle()
+    assert.strictEqual(
+      exporter.getFinishedSpans().filter(
+        (s) => s.attributes["db.operation.name"] === "RUN",
+      ).length,
+      1,
+    )
+    exporter.reset()
+
+    instrumentation.disable()
+    await runOnce("RETURN 2 AS n")
+    await settle()
+    assert.strictEqual(
+      exporter.getFinishedSpans().filter(
+        (s) => s.attributes["db.operation.name"] === "RUN",
+      ).length,
+      0,
+    )
+    exporter.reset()
+
+    instrumentation.enable()
+    await runOnce("RETURN 3 AS n")
+    await settle()
+    assert.strictEqual(
+      exporter.getFinishedSpans().filter(
+        (s) => s.attributes["db.operation.name"] === "RUN",
+      ).length,
+      1,
+    )
+  })
+
+  it("duas sessoes geram 2 OPEN_SESSION + 2 CLOSE_SESSION + 2 RUN", async () => {
+    const s1 = driver.session()
+    const s2 = driver.session()
+    await s1.run("RETURN 1 AS n")
+    await s2.run("RETURN 2 AS n")
+    await s1.close()
+    await s2.close()
+
+    await settle()
+
+    const spans = exporter.getFinishedSpans()
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "OPEN_SESSION")
+        .length,
+      2,
+    )
+    assert.strictEqual(
+      spans.filter(
+        (s) => s.attributes["db.operation.name"] === "CLOSE_SESSION",
+      ).length,
+      2,
+    )
+    assert.strictEqual(
+      spans.filter((s) => s.attributes["db.operation.name"] === "RUN").length,
+      2,
+    )
+  })
+
+  it("rxSession nao e instrumentada (0 spans)", async () => {
+    const rx = driver.rxSession()
+    await rx.close()
+
+    await settle()
+
+    assert.strictEqual(
+      exporter.getFinishedSpans().filter(
+        (s) => s.attributes["db.operation.name"] !== undefined,
+      ).length,
+      0,
+    )
+  })
+
+  it("requireParentSpan (default) nao gera spans sem parent, 1 span com parent", async () => {
+    const defaultInstrumentation = new Neo4jInstrumentation()
+    defaultInstrumentation.setTracerProvider(provider)
+    defaultInstrumentation.enable()
+
+    const session = driver.session()
+    await session.run("RETURN 1 AS n")
+    await session.close()
+
+    await settle()
+
+    assert.strictEqual(
+      exporter.getFinishedSpans().filter(
+        (s) => s.attributes["db.operation.name"] !== undefined,
+      ).length,
+      0,
+    )
+    exporter.reset()
+
+    const tracer = trace.getTracer("neo4j-zero-span-test")
+    await tracer.startActiveSpan("parent", async (span) => {
+      const s2 = driver.session()
+      await s2.run("RETURN 2 AS n")
+      await s2.close()
+      span.end()
+    })
+
+    await settle()
+
+    assert.strictEqual(
+      exporter.getFinishedSpans().filter(
+        (s) => s.attributes["db.operation.name"] === "RUN",
+      ).length,
+      1,
+    )
+
+    defaultInstrumentation.disable()
   })
 })

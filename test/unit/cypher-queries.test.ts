@@ -5,8 +5,8 @@
 
 import { describe, it } from "node:test"
 import assert from "node:assert/strict"
-import { sanitizeCypher } from "../../src/cypher-sanitizer"
-import { extractQuerySummary } from "../../src/query-summary"
+import { sanitizeCypher } from "../../src/cypher-sanitizer.ts"
+import { extractQuerySummary } from "../../src/query-summary.ts"
 
 describe("cypher-queries (fixtures sinteticas)", () => {
   describe("sanitizeCypher", () => {

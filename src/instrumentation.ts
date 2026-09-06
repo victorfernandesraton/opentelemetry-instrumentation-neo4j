@@ -3,14 +3,15 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { createRequire } from "node:module"
 import {
   InstrumentationBase,
   InstrumentationNodeModuleDefinition,
   isWrapped,
 } from "@opentelemetry/instrumentation"
 import type { InstrumentationModuleDefinition } from "@opentelemetry/instrumentation"
-import type { Neo4jInstrumentationConfig } from "./types"
-import type { Neo4jTransaction } from "./internal-types"
+import type { Neo4jInstrumentationConfig } from "./types.ts"
+import type { Neo4jTransaction } from "./internal-types.ts"
 import {
   configureSessionPatcher,
   wrapBeginTransaction,
@@ -19,8 +20,8 @@ import {
   wrapSessionExecuteRead,
   wrapSessionExecuteWrite,
   wrapSessionRun,
-} from "./session-patcher"
-import { VERSION } from "./version"
+} from "./session-patcher.ts"
+import { VERSION } from "./version.ts"
 
 export class Neo4jInstrumentation
   extends InstrumentationBase<Neo4jInstrumentationConfig> {
@@ -40,7 +41,7 @@ export class Neo4jInstrumentation
     return [
       new InstrumentationNodeModuleDefinition(
         "neo4j-driver",
-        [">=5.0.0 <7"],
+        [">=6.0.0 <7"],
         (moduleExports, moduleVersion) => {
           _diag.debug(`Patching neo4j-driver@${moduleVersion}`)
 
@@ -95,20 +96,6 @@ export class Neo4jInstrumentation
             patchProto(sessionClass.prototype as Record<string, CallableFunction>)
           }
 
-          const mod = moduleExports as Record<string, unknown>
-          for (const key of Object.keys(mod)) {
-            const val = mod[key]
-            if (
-              typeof val === "function" &&
-              (val as { prototype?: { run?: unknown } }).prototype?.run
-            ) {
-              patchProto(
-                (val as { prototype: Record<string, CallableFunction> })
-                  .prototype,
-              )
-            }
-          }
-
           if (!isWrapped(moduleExports.driver)) {
             _wrap(moduleExports, "driver", (original) => {
               return function wrappedDriver(
@@ -161,11 +148,6 @@ export class Neo4jInstrumentation
   override enable(): void {
     super.enable()
 
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      require("neo4j-driver")
-    } catch {
-      // neo4j-driver not installed — no-op
-    }
+    createRequire(import.meta.url)("neo4j-driver")
   }
 }

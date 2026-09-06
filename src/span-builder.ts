@@ -15,7 +15,7 @@ import {
   ATTR_SERVER_ADDRESS,
   ATTR_SERVER_PORT,
   DB_SYSTEM_NEO4J,
-} from "./semconv";
+} from "./semconv.ts";
 
 export interface SpanAttributes {
   [key: string]: string | number | boolean | undefined;
